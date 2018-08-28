@@ -1,6 +1,7 @@
+import logging
 import argparse
 import json
-import os
+import os,sys
 # data: q, cq, (dq), (pq), y, *x, *cx
 # shared: x, cx, (dx), (px), word_counter, char_counter, word2vec
 # no metadata
@@ -9,6 +10,9 @@ from collections import Counter
 from tqdm import tqdm
 
 from squad.utils import get_word_span, get_word_idx, process_tokens
+
+from  squad.log import setup_custom_logger
+from fever.utils import JSONLineReader
 
 
 def main():
@@ -53,6 +57,9 @@ def create_all(args):
 
 
 def prepro(args):
+
+    logger = setup_custom_logger('root', args)
+
     if not os.path.exists(args.target_dir):
         os.makedirs(args.target_dir)
 
@@ -121,9 +128,21 @@ def prepro_each(args, data_type, start_ratio=0.0, stop_ratio=1.0, out_name="defa
     if not args.split:
         sent_tokenize = lambda para: [para]
 
+    '''This is where they read teh json'''
+    #TODO: load fever and try to preprocess it
     source_path = in_path or os.path.join(args.source_dir, "{}-v1.1.json".format(data_type))
-    source_data = json.load(open(source_path, 'r'))
 
+
+
+
+    with open(source_path,"r") as f:
+
+        jlr= JSONLineReader()
+        all_claims_ev=jlr.process(f)
+        logging.info(all_claims_ev["verifiable"])
+        sys.exit(1)
+
+    source_data = json.load(open(source_path, 'r'))
     q, cq, y, rx, rcx, ids, idxs = [], [], [], [], [], [], []
     cy = []
     x, cx = [], []
@@ -138,11 +157,18 @@ def prepro_each(args, data_type, start_ratio=0.0, stop_ratio=1.0, out_name="defa
         x.append(xp)
         cx.append(cxp)
         p.append(pp)
+        logging.info("reached here1")
+        logging.info(p)
+        logging.info(article)
+
         for pi, para in enumerate(article['paragraphs']):
             # wordss
             context = para['context']
             context = context.replace("''", '" ')
             context = context.replace("``", '" ')
+            logger.info(context)
+            sys.exit(1)
+
             xi = list(map(word_tokenize, sent_tokenize(context)))
             xi = [process_tokens(tokens) for tokens in xi]  # process tokens
             # given xi, add chars
